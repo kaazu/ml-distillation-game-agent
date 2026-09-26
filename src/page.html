@@ -1,0 +1,418 @@
+<title>蒸留ランナー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=M+PLUS+1+Code:wght@400;600&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#11161f; --panel:#18202c; --line:#2a3544; --ink:#e6ecf2; --dim:#8d9aab;
+  --teacher:#f0a63c; --student:#3cc6b0; --human:#9aa7ff; --bad:#ef6a5b;
+  --display:"DotGothic16","M PLUS 1 Code",monospace;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;
+  --mono:"M PLUS 1 Code",ui-monospace,Menlo,monospace;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--body);font-size:15px;line-height:1.7;padding-inline:16px;padding-block:20px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1,h2{font-family:var(--display);font-weight:400;text-wrap:balance;margin:0;letter-spacing:.02em}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.2}
+h2{font-size:20px}
+p{margin:0}
+.lede{color:var(--dim);max-width:68ch}
+.lede b{color:var(--ink);font-weight:700}
+.t{color:var(--teacher)} .s{color:var(--student)} .h{color:var(--human)}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:860px){.stage{grid-template-columns:1fr}}
+.screen{background:#000;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
+canvas#game{display:block;width:100%;height:auto;image-rendering:pixelated;aspect-ratio:384/240;touch-action:none}
+.banner{position:absolute;inset:auto 0 0 0;padding:8px 12px;font-family:var(--mono);font-size:13px;background:linear-gradient(transparent,rgba(0,0,0,.7));color:#fff;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.side{display:flex;flex-direction:column;gap:14px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.lbl{font-size:12px;color:var(--dim);letter-spacing:.06em}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.seg button{font:inherit;font-size:13px;padding:7px 4px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--dim);cursor:pointer}
+.seg button[aria-pressed="true"]{color:var(--bg);font-weight:700}
+.seg button[data-v="teacher"][aria-pressed="true"]{background:var(--teacher);border-color:var(--teacher)}
+.seg button[data-v="student"][aria-pressed="true"]{background:var(--student);border-color:var(--student)}
+.seg button[data-v="human"][aria-pressed="true"]{background:var(--human);border-color:var(--human)}
+.seg.two{grid-template-columns:1fr 1fr}
+.seg.two button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=number]{width:72px;font:inherit;font-family:var(--mono);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:4px 6px}
+.btn{font:inherit;font-weight:700;padding:8px 14px;border-radius:4px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible{outline:2px solid var(--student);outline-offset:2px}
+.meter{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;background:var(--student);transition:width .08s}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.kv dt{color:var(--dim)} .kv dd{margin:0;text-align:right}
+.hint{font-size:12px;color:var(--dim)}
+.feat{display:grid;grid-template-columns:78px 1fr 44px;gap:2px 8px;font-family:var(--mono);font-size:11px;align-items:center;font-variant-numeric:tabular-nums}
+.feat .bar{height:6px;background:var(--bg);position:relative;border-radius:3px}
+.feat .bar i{position:absolute;top:0;bottom:0;background:var(--dim);border-radius:3px}
+.feat span:last-child{text-align:right;color:var(--dim)}
+.pipe{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.pipe{grid-template-columns:1fr}}
+.step{border-top:3px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.step:nth-child(1){border-color:var(--teacher)} .step:nth-child(2){border-color:var(--student)} .step:nth-child(3){border-color:var(--ink)}
+.step h3{margin:0;font-size:15px}
+.step p{color:var(--dim);font-size:14px}
+.num{font-family:var(--display);font-size:13px;color:var(--dim)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:12px;color:var(--dim);font-weight:400;letter-spacing:.06em}
+td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:12px;padding:1px 8px;border-radius:10px;border:1px solid currentColor}
+.clr{display:inline-block;width:64px;height:6px;border-radius:3px;background:var(--bg);vertical-align:middle;margin-left:8px;position:relative;overflow:hidden}
+.clr i{position:absolute;inset:0 auto 0 0;background:currentColor}
+.progress{font-family:var(--mono);font-size:13px;color:var(--dim)}
+.grid2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.notes{display:flex;flex-direction:column;gap:10px;color:var(--dim);max-width:70ch}
+.notes b{color:var(--ink)}
+code{font-family:var(--mono);font-size:.92em;color:var(--ink)}
+a{color:var(--student)}
+@media (prefers-reduced-motion:reduce){.meter i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>蒸留ランナー</h1>
+    <p class="lede">重くて遅い<b class="t">教師</b>（全通り先読みプランナー。LLMの代役）のプレイを記録し、<b class="s">勾配ブースティング木</b>（LightGBMと同じ方式をJSで実装）に蒸留しました。教師は1判断に数ms〜数十msかかりますが、生徒は数µsで判断します。応答に260msかかる条件では、教師は間に合わずに落ちますが、生徒はリアルタイムのまま、学習に使っていない開始条件の4分の3をクリアします。</p>
+  </header>
+
+  <section class="stage">
+    <div class="screen">
+      <canvas id="game" width="384" height="240" aria-label="ゲーム画面"></canvas>
+      <div class="banner"><span id="bLeft">―</span><span id="bRight"></span></div>
+    </div>
+    <div class="side">
+      <div class="box">
+        <span class="lbl">プレイヤー</span>
+        <div class="seg" id="who">
+          <button data-v="teacher" aria-pressed="false">教師</button>
+          <button data-v="student" aria-pressed="true">生徒 GBDT</button>
+          <button data-v="human" aria-pressed="false">あなた</button>
+        </div>
+        <span class="lbl">判断が反映されるまでの遅延</span>
+        <div class="seg two" id="lat">
+          <button data-v="0" aria-pressed="true">0ms（停止方式）</button>
+          <button data-v="16" aria-pressed="false">260ms（API想定）</button>
+        </div>
+        <div class="row">
+          <label class="lbl" for="wait">開始待機</label>
+          <input id="wait" type="number" min="0" max="179" value="64">
+          <span class="hint">フレーム（0〜179）</span>
+        </div>
+        <div class="row">
+          <button class="btn" id="play">スタート</button>
+          <button class="btn ghost" id="rand">ランダム</button>
+        </div>
+        <p class="hint" id="humanHint" hidden>スペース / ↑ / 画面タップでジャンプ</p>
+      </div>
+      <div class="box">
+        <span class="lbl">いまの判断</span>
+        <div class="row" style="justify-content:space-between"><span id="act" style="font-family:var(--mono)">―</span><span id="pj" class="hint"></span></div>
+        <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+        <dl class="kv">
+          <dt>判断1回の計算時間</dt><dd id="lat1">―</dd>
+          <dt>生徒の推論（1万回平均）</dt><dd id="latS">―</dd>
+          <dt>到達距離</dt><dd id="dist">―</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>入力される特徴量</h2>
+    <div class="grid2">
+      <div class="box">
+        <span class="lbl">ハーネスが毎判断つくる21次元ベクトル（右は重要度）</span>
+        <div class="feat" id="feats"></div>
+      </div>
+      <div class="notes">
+        <p>画面の画像は使いません。記事のハーネスと同じく、ゲーム内部の状態を数値に直して渡します。</p>
+        <p><b>terrain_0〜9</b> は前方10タイルの地面の高さです（足元との差、穴は−9）。<b>e1 / e2</b> は前方の敵2体の相対位置と速度です。</p>
+        <p>操作は記事と同じく2択です。<code>right_run</code>（右へ走る）と <code>right_run_jump</code>（走りながらジャンプ）のどちらかを4フレームごとに選びます。</p>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>蒸留の手順</h2>
+    <div class="pipe">
+      <div class="step"><span class="num">1</span><h3>教師がプレイして記録</h3><p>開始待機0, 3, 6 … 177の60通りで教師がプレイし、クリアした回の「状態 → 選んだ操作」を記録します。</p></div>
+      <div class="step"><span class="num">2</span><h3>勾配ブースティング木で学習</h3><p>完全一致の重複を除き、少数派の「ジャンプ」に重みを付けて二値分類を学習します。葉31枚 × 300本、学習率0.1です。</p></div>
+      <div class="step"><span class="num">3</span><h3>未知の開始条件でテスト</h3><p>学習に使っていない開始待機120通りで、生徒をリアルタイムにプレイさせます。</p></div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:14px">
+    <h2>結果</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>プレイヤー</th><th>方式</th><th>判断1回</th><th>クリア</th></tr></thead>
+        <tbody id="res"></tbody>
+      </table>
+    </div>
+    <p class="hint" id="resNote"></p>
+    <div class="row">
+      <button class="btn ghost" id="bench">このブラウザで再計測</button>
+      <button class="btn ghost" id="retrain">ブラウザ内で学習し直す（約2分）</button>
+      <span class="progress" id="prog"></span>
+    </div>
+  </section>
+
+  <section class="notes">
+    <h2 style="color:var(--ink)">作ってみて分かったこと</h2>
+    <p><b>そのまま真似させると、見たことのない状況で崩れる。</b>最初の版では、学習データの正解率が98%でも、未知の開始条件でのクリアは5%でした。教師が「ぶつかる直前の最後の瞬間」に跳ぶので、生徒の判断が4フレームずれるだけで詰むためです。</p>
+    <p><b>教師を「真似しやすい教師」にする。</b>「最善の続きが生き残るか」ではなく「続きの手順のうち何割が生き残るか」で判断する教師に変えると、余裕を持って跳ぶようになり、生徒の成績が大きく上がりました。</p>
+    <p><b>学習範囲の外には弱い。</b>開始待機0〜59で学習して60以降でテストすると、ほぼ全滅しました。敵の配置が見たことのない形になるためです。そこで学習とテストは同じ0〜179の範囲から、重ならないように取っています。生徒が自分で訪れた状態に教師がラベルを付け足すDAggerも試しましたが、この設定では伸びませんでした（91→87〜91/120）。</p>
+    <p><b>ハーネスを単純にする。</b>ボタンを押す長さでジャンプの高さが変わる仕様では、空中での押し方までラベルに影響して学習が崩れました。ジャンプの高さを固定し、判断を接地中に集中させています。</p>
+    <p>参考：<a href="https://zenn.dev/nwn/articles/e49154653ecea9" target="_blank" rel="noopener">Jevにゲームをやらせるな！LLMを蒸留してみよう！（Zenn）</a></p>
+  </section>
+</div>
+
+<script id="core-src">
+/*CORE*/
+</script>
+<script type="text/plain" id="worker-src">
+onmessage = (ev) => {
+  const d = ev.data;
+  if (d.cmd === 'bench') {
+    const c = makeCourse(1), m = d.model, out = {};
+    const testW = []; for (let w = 0; w < 180; w++) if (w % 3) testW.push(w);
+    let k = 0, i = 0;
+    for (const w of testW) { if (runEpisode(c, w, s => predictProb(m, features(c, s)) > 0.5 ? 1 : 0).clear) k++; if (++i % 10 === 0) postMessage({ prog: `生徒 ${i}/${testW.length}` }); }
+    out.student = [k, testW.length];
+    postMessage({ partial: out });
+    setTeacher('margin', 1.5, 8);
+    const tw = testW.filter((_, j) => j % 10 === 0);
+    for (const [key, lat] of [['teacherStop', 0], ['teacherRT', 16]]) {
+      let kk = 0, j = 0;
+      for (const w of tw) { if (runEpisode(c, w, s => teacher(c, s), { latency: lat }).clear) kk++; postMessage({ prog: `教師(${lat ? '260ms' : '停止'}) ${++j}/${tw.length}` }); }
+      out[key] = [kk, tw.length];
+      postMessage({ partial: out });
+    }
+    postMessage({ done: out });
+  }
+  if (d.cmd === 'retrain') {
+    const c = makeCourse(1);
+    setTeacher('margin', 1.5, 8);
+    const X = [], y = [], seen = new Set(); let tc = 0;
+    const waits = Array.from({ length: 30 }, (_, i) => i * 6);
+    waits.forEach((w, i) => {
+      const rec = [];
+      if (runEpisode(c, w, s => teacher(c, s), { record: rec }).clear) {
+        tc++;
+        for (const r of rec) { const key = r.x.join(); if (seen.has(key)) continue; seen.add(key); X.push(r.x); y.push(r.y); }
+      }
+      postMessage({ prog: `教師のプレイを記録 ${i + 1}/${waits.length}（${X.length}件）` });
+    });
+    const cnt = [0, 0]; y.forEach(v => cnt[v]++);
+    const m = trainGBDT(X, y, { weight: y.map(v => (X.length / 2) / cnt[v]), bins: 128, leaves: 31, trees: 300,
+      onTree: t => { if (t % 20 === 0) postMessage({ prog: `学習中 ${t}/300本` }); } });
+    postMessage({ model: m, info: { n: X.length, cnt, tc, eps: waits.length } });
+  }
+};
+</script>
+<script>
+const MODEL0 = /*MODEL*/;
+const RESULTS0 = /*RESULTS*/;
+let model = MODEL0;
+const cv = document.getElementById('game'), g = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+const course = makeCourse(1);
+let who = 'student', latency = 0, st = null, running = false, action = 0, pending = [], humanJump = false, lastP = null, lastMs = null, raf = 0;
+
+// ---- 描画 ----
+const COL = { sky1:'#6fa8dc', sky2:'#a9d1ee', soil:'#8a5a3b', soilTop:'#c98b4f', grid:'#6e4630', pipe:'#3f9b57', pipeHi:'#6cc27e', pipeDk:'#276b3a',
+  enemy:'#5b3a74', enemyEye:'#fff', flag:'#f5f5f5' };
+function draw() {
+  const W = 384, H = 240, cam = st ? Math.max(0, Math.min(st.p.x - 120, course.h.length * TILE - W)) : 0;
+  const sky = g.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, COL.sky1); sky.addColorStop(1, COL.sky2);
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  // 遠景の丘
+  g.fillStyle = '#8fc4a0';
+  for (let i = -1; i < 6; i++) { const x = i * 160 - (cam * 0.3) % 160; g.beginPath(); g.ellipse(x + 60, H - 32, 70, 34, 0, Math.PI, 0); g.fill(); }
+  const c0 = Math.floor(cam / TILE), c1 = c0 + Math.ceil(W / TILE) + 1;
+  for (let col = c0; col <= c1; col++) {
+    const hgt = col < course.h.length ? course.h[col] : 2; if (!hgt) continue;
+    const x = col * TILE - cam, top = H - hgt * TILE;
+    // 地面
+    g.fillStyle = COL.soil; g.fillRect(x, H - 2 * TILE, TILE, 2 * TILE);
+    g.fillStyle = COL.soilTop; g.fillRect(x, H - 2 * TILE, TILE, 3);
+    g.strokeStyle = COL.grid; g.lineWidth = 1; g.strokeRect(x + .5, H - 2 * TILE + .5, TILE - 1, TILE - 1); g.strokeRect(x + .5, H - TILE + .5, TILE - 1, TILE - 1);
+    if (hgt > 2) {
+      const h_ = course.h, L = h_[col - 1] === hgt ? col - 1 : col, lo = v => v === undefined || v < hgt;
+      const pipeLike = h_[L + 1] === hgt && h_[L + 2] !== hgt && lo(h_[L - 1]) && lo(h_[L + 2]);
+      if (pipeLike) { // 土管（2列）
+        g.fillStyle = COL.pipe; g.fillRect(x, top, TILE, H - 2 * TILE - top);
+        g.fillStyle = COL.pipeHi; g.fillRect(x + (course.h[col-1]===hgt ? 0 : 3), top, 3, H - 2 * TILE - top);
+        g.fillStyle = COL.pipeDk; g.fillRect(x, top, TILE, 5);
+      } else { // 段差ブロック
+        for (let yy = top; yy < H - 2 * TILE; yy += TILE) { g.fillStyle = '#b07a4a'; g.fillRect(x, yy, TILE, TILE); g.strokeStyle = COL.grid; g.strokeRect(x + .5, yy + .5, TILE - 1, TILE - 1); }
+      }
+    }
+  }
+  // ゴール
+  const gx = course.goalX - cam;
+  if (gx > -20 && gx < W + 20) { g.fillStyle = '#ddd'; g.fillRect(gx, 40, 2, H - 2 * TILE - 40); g.fillStyle = '#3cc6b0'; g.beginPath(); g.moveTo(gx + 2, 42); g.lineTo(gx + 26, 52); g.lineTo(gx + 2, 62); g.fill(); }
+  if (!st) return;
+  // 敵（甲虫）
+  for (const e of st.e) {
+    if (!e.alive) continue; const x = e.x - cam; if (x < -20 || x > W + 20) continue;
+    g.fillStyle = COL.enemy; g.beginPath(); g.ellipse(x + 7, e.y + 8, 7, 6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2d1c3a'; g.fillRect(x + 1, e.y + 12, 3, 2); g.fillRect(x + 10, e.y + 12, 3, 2);
+    g.fillStyle = COL.enemyEye; g.fillRect(x + (e.vx < 0 ? 2 : 9), e.y + 5, 3, 3);
+  }
+  // プレイヤー（小さなロボット）
+  const p = st.p, px = p.x - cam, color = who === 'teacher' ? '#f0a63c' : who === 'student' ? '#3cc6b0' : '#9aa7ff';
+  g.fillStyle = '#1d2530'; g.fillRect(px, p.y + 2, p.w, p.h - 4);
+  g.fillStyle = color; g.fillRect(px + 1, p.y + 3, p.w - 2, 6);
+  g.fillStyle = '#1d2530'; g.fillRect(px + 6, p.y + 5, 5, 2);
+  g.fillStyle = '#1d2530'; const leg = p.ground ? (Math.floor(st.t / 5) % 2) * 2 : 1;
+  g.fillRect(px + 1 + leg, p.y + p.h - 2, 3, 2); g.fillRect(px + 7 - leg, p.y + p.h - 2, 3, 2);
+  g.fillStyle = color; g.fillRect(px + 5, p.y, 2, 2);
+  // 遅延中の判断を可視化
+  if (latency && pending.length) { g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(6, 6, 150, 14); g.fillStyle = '#fff'; g.font = '10px monospace'; g.fillText(`応答待ち: ${pending.length}件`, 10, 16); }
+}
+
+// ---- 1フレーム進める ----
+function decide() {
+  if (who === 'human') return humanJump ? 1 : 0;
+  const t0 = performance.now(); let a;
+  if (who === 'teacher') { setTeacher('margin', 1.5, 8); a = teacher(course, st); lastP = null; }
+  else { const f = features(course, st); lastP = predictProb(model, f); a = lastP > 0.5 ? 1 : 0; }
+  lastMs = performance.now() - t0; return a;
+}
+function tick() {
+  if (!running) return;
+  for (let k = 0; k < 1; k++) {
+    if (st.t % DECIDE === 0) {
+      const a = decide();
+      if (who === 'human') action = a; else pending.push({ at: st.t + latency, a });
+      showFeatures(features(course, st));
+      showDecision(a);
+    }
+    if (who === 'human') action = humanJump ? 1 : 0;
+    while (pending.length && pending[0].at <= st.t) action = pending.shift().a;
+    step(course, st, action);
+    if (st.dead || st.clear) { running = false; }
+  }
+  draw();
+  const prog = Math.min(100, st.p.x / course.goalX * 100);
+  $('dist').textContent = `${prog.toFixed(0)}%`;
+  $('bLeft').textContent = `${{ teacher: '教師', student: '生徒 GBDT', human: 'あなた' }[who]} ・ 遅延 ${latency ? '260ms' : '0ms'} ・ 待機 ${$('wait').value}`;
+  if (!running) { $('bRight').textContent = st.clear ? 'クリア！' : ({ enemy: '敵に接触', pit: '穴に落下', timeout: '時間切れ' }[st.cause] || '停止'); $('play').textContent = 'もう一度'; }
+  else $('bRight').textContent = `${(st.t / 60).toFixed(1)}s`;
+  if (running) raf = requestAnimationFrame(tick);
+}
+function showDecision(a) {
+  $('act').textContent = ACTIONS[a]; $('act').style.color = a ? 'var(--teacher)' : 'var(--ink)';
+  if (lastP != null) { $('pj').textContent = `P(jump) = ${lastP.toFixed(3)}`; $('meter').style.width = (lastP * 100) + '%'; }
+  else { $('pj').textContent = who === 'teacher' ? '256通り先読み' : ''; $('meter').style.width = a ? '100%' : '0%'; }
+  if (who !== 'human' && lastMs != null) $('lat1').textContent = lastMs < 0.1 ? '< 0.1 ms' : `${lastMs.toFixed(1)} ms`;
+  else $('lat1').textContent = '―';
+}
+const imp = () => { const m = Math.max(...model.gain); return model.gain.map(v => v / m); };
+function buildFeatures() {
+  const el = $('feats'); el.innerHTML = ''; const im = imp();
+  FEATURE_NAMES.forEach((n, i) => {
+    el.insertAdjacentHTML('beforeend', `<span>${n}</span><span class="bar"><i style="left:0;width:${(im[i] * 100).toFixed(0)}%;opacity:.35"></i><i id="fv${i}" style="background:var(--student);width:2px"></i></span><span id="fn${i}">―</span>`);
+  });
+}
+const RANGE = [[-8, 8], [0, 2.5], [0, 1], [0, 1], [0, 16]].concat(Array(10).fill([-9, 8])).concat([[-10, 200], [-120, 120], [-1, 1], [-10, 200], [-120, 120], [-1, 1]]);
+function showFeatures(f) {
+  f.forEach((v, i) => {
+    const [lo, hi] = RANGE[i], r = Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+    const b = $('fv' + i); b.style.left = `calc(${(r * 100).toFixed(1)}% - 1px)`;
+    $('fn' + i).textContent = v === 999 ? 'なし' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(1));
+  });
+}
+function start() {
+  cancelAnimationFrame(raf);
+  const w = Math.max(0, Math.min(179, +$('wait').value | 0)); $('wait').value = w;
+  st = newState(course, w); action = 0; pending = []; running = true; humanJump = false;
+  $('play').textContent = 'やり直す'; tick();
+}
+// ---- 操作 ----
+document.querySelectorAll('#who button').forEach(b => b.onclick = () => {
+  who = b.dataset.v; document.querySelectorAll('#who button').forEach(x => x.setAttribute('aria-pressed', x === b));
+  $('humanHint').hidden = who !== 'human'; start();
+});
+document.querySelectorAll('#lat button').forEach(b => b.onclick = () => {
+  latency = +b.dataset.v; document.querySelectorAll('#lat button').forEach(x => x.setAttribute('aria-pressed', x === b)); start();
+});
+$('play').onclick = start;
+$('rand').onclick = () => { $('wait').value = Math.floor(Math.random() * 180); start(); };
+const setJump = v => { humanJump = v; };
+addEventListener('keydown', e => { if (who === 'human' && (e.code === 'Space' || e.code === 'ArrowUp')) { e.preventDefault(); setJump(true); } });
+addEventListener('keyup', e => { if (e.code === 'Space' || e.code === 'ArrowUp') setJump(false); });
+cv.addEventListener('pointerdown', () => { if (who === 'human') setJump(true); });
+cv.addEventListener('pointerup', () => setJump(false));
+cv.addEventListener('pointerleave', () => setJump(false));
+
+// ---- 推論速度 ----
+function measureStudent() {
+  const s = newState(course, 50), xs = []; for (let i = 0; i < 400; i++) { if (i % 4 === 0) xs.push(features(course, s)); step(course, s, 0); }
+  const N = 10000, t0 = performance.now(); let acc = 0;
+  for (let i = 0; i < N; i++) acc += predictProb(model, xs[i % xs.length]);
+  const us = (performance.now() - t0) / N * 1000; $('latS').textContent = `${us.toFixed(1)} µs`; return us;
+}
+// ---- 結果表 ----
+let results = RESULTS0;
+function renderResults() {
+  const r = results, rows = [
+    ['教師', 't', '停止方式（遅延0）', r.teacherMs, r.teacherStop],
+    ['教師', 't', 'リアルタイム（260ms）', r.teacherMs, r.teacherRT],
+    ['生徒 GBDT', 's', 'リアルタイム', r.studentUs != null ? `${r.studentUs.toFixed(1)} µs` : '―', r.student],
+  ];
+  $('res').innerHTML = rows.map(([n, c, mode, ms, cl]) => {
+    const rate = cl ? cl[0] / cl[1] : 0;
+    return `<tr><td><span class="pill ${c}">${n}</span></td><td>${mode}</td><td class="n">${typeof ms === 'number' ? ms.toFixed(1) + ' ms' : ms}</td><td class="n">${cl ? `${cl[0]}/${cl[1]}（${(rate * 100).toFixed(0)}%）` : '計測中…'}<span class="clr ${c}"><i style="width:${(rate * 100).toFixed(0)}%"></i></span></td></tr>`;
+  }).join('');
+  $('resNote').textContent = r.note || '';
+}
+// ---- Worker ----
+let worker = null;
+function getWorker() {
+  if (worker) return worker;
+  const src = $('core-src').textContent + '\n' + $('worker-src').textContent;
+  worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+  return worker;
+}
+function busy(b) { $('bench').disabled = b; $('retrain').disabled = b; }
+$('bench').onclick = () => {
+  busy(true); const w = getWorker();
+  results = { teacherMs: results.teacherMs, studentUs: measureStudent(), note: 'このブラウザで計測中です。教師の計測は1回あたり数十秒かかります。' };
+  renderResults();
+  w.onmessage = ev => {
+    const d = ev.data;
+    if (d.prog) $('prog').textContent = d.prog;
+    if (d.partial || d.done) { Object.assign(results, d.partial || d.done); renderResults(); }
+    if (d.done) { results.note = 'このブラウザで計測しました（教師は計算時間の都合で12通りに間引いています）。'; renderResults(); $('prog').textContent = '完了'; busy(false); }
+  };
+  w.postMessage({ cmd: 'bench', model });
+};
+$('retrain').onclick = () => {
+  busy(true); const w = getWorker();
+  w.onmessage = ev => {
+    const d = ev.data;
+    if (d.prog) $('prog').textContent = d.prog;
+    if (d.model) {
+      model = d.model; buildFeatures(); measureStudent();
+      $('prog').textContent = `学習し直しました：教師 ${d.info.tc}/${d.info.eps} クリア、学習データ ${d.info.n}件（ジャンプ ${d.info.cnt[1]}件）。生徒で再計測できます。`;
+      busy(false); if (who === 'student') start();
+    }
+  };
+  w.postMessage({ cmd: 'retrain' });
+};
+
+buildFeatures();
+results.studentUs = measureStudent();
+renderResults();
+draw();
+start();
+</script>
